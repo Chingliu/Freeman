@@ -1,0 +1,96 @@
+name: "Freeman: E3 Edge browser proxy tunnel"
+
+on:
+  workflow_dispatch:
+    inputs:
+      hold_seconds:
+        description: "Maximum tunnel lifetime in seconds (60-900)"
+        required: true
+        default: "300"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: freeman-e3-edge-proxy
+  cancel-in-progress: true
+
+jobs:
+  e3-proxy-tunnel:
+    name: Run temporary authenticated proxy tunnel
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned experiment dependencies
+        run: python -m pip install --disable-pip-version-check -r experiments/e3-requirements.txt
+
+      - name: Install cloudflared
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            --output /tmp/cloudflared
+          sudo install -m 0755 /tmp/cloudflared /usr/local/bin/cloudflared
+          cloudflared --version
+
+      - name: Start proxy relay and temporary HTTPS tunnel
+        env:
+          E3_TUNNEL_TOKEN: ${{ secrets.E3_TUNNEL_TOKEN }}
+          E3_HOLD_SECONDS: ${{ inputs.hold_seconds }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${E3_TUNNEL_TOKEN}" ]]; then
+            echo "::error::Configure repository Actions secret E3_TUNNEL_TOKEN before running E3."
+            exit 1
+          fi
+          python experiments/e3_tunnel_server.py &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            if [[ -n "${TUNNEL_PID:-}" ]]; then kill "$TUNNEL_PID" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8765/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8765/health >/dev/null
+          cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8765 > /tmp/e3-cloudflared.log 2>&1 &
+          TUNNEL_PID=$!
+          for _ in $(seq 1 60); do
+            URL=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/e3-cloudflared.log | head -n1 || true)
+            if [[ -n "$URL" ]]; then break; fi
+            if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then cat /tmp/e3-cloudflared.log; exit 1; fi
+            sleep 1
+          done
+          if [[ -z "${URL:-}" ]]; then
+            echo "::error::Timed out waiting for Quick Tunnel URL."
+            cat /tmp/e3-cloudflared.log
+            exit 1
+          fi
+          echo "E3_TUNNEL_URL=$URL"
+          echo "E3_STATUS_URL=$URL/health"
+          echo "The proxy tunnel is temporary. Keep this job running while testing; do not share the URL or token."
+          python - <<'PY'
+          import os, time
+          try:
+              seconds = int(os.environ.get("E3_HOLD_SECONDS", "300"))
+          except ValueError:
+              raise SystemExit("hold_seconds must be an integer")
+          if not 60 <= seconds <= 900:
+              raise SystemExit("hold_seconds must be between 60 and 900")
+          print(f"E3_HOLD_SECONDS={seconds}")
+          time.sleep(seconds)
+          PY
+        timeout-minutes: 18
