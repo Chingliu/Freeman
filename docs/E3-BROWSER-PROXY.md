@@ -53,7 +53,7 @@ Do not commit the token, put it in workflow inputs, or post it in an issue/PR. T
 
 1. Open **Actions → Freeman: E3 Edge browser proxy tunnel**.
 2. Choose **Run workflow** on branch `experiment/e3-edge-browser-proxy`.
-3. Choose `hold_seconds` between 60 and 900; start with 300.
+3. Choose `hold_seconds` between 60 and 18000 (5 hours maximum); start with 300 for testing.
 4. Keep the workflow run active while testing locally.
 5. In the logs, copy `E3_TUNNEL_URL=https://....trycloudflare.com` and note `E3_RUNNER_EGRESS_IP=...`.
 
@@ -61,7 +61,9 @@ The job intentionally fails early if `E3_TUNNEL_TOKEN` is not configured. The st
 
 ## 3. Start the local SOCKS5 client
 
-In a Windows PowerShell terminal, from a local clone of this repository, install the pinned dependency and set the environment variable:
+**One-step option:** run `experiments\e3_start.bat` by double-click or from a terminal. It asks for the tunnel URL and the token, checks the tunnel health endpoint, starts the local SOCKS5 client, verifies HTTPS connectivity through the tunnel, and only then opens the dedicated Edge instance. Pressing a key in the bat window stops the local client.
+
+**Manual option:** in a Windows PowerShell terminal, from a local clone of this repository, install the pinned dependency and set the environment variable:
 
 ```powershell
 python --version  # use Python 3.11 or newer
@@ -119,6 +121,7 @@ A successful `/health` response alone does **not** prove that proxy traffic work
 ## Limitations and security notes
 
 - This transports TCP only and allows destination ports 80/443; it does not provide UDP, QUIC, arbitrary ports, or system-wide routing.
+- A long hold (up to 5 hours) consumes hosted-runner minutes for the whole session; on private repositories this counts against the monthly Actions quota.
 - Edge may fall back to direct connections for some traffic or browser services; IP comparison is the practical check for the test page.
 - The runner and Quick Tunnel are temporary and their outbound IP can change between runs.
 - Do not use this experiment for banking, sensitive logins, or confidential information. A proxy can observe destination metadata, and the code has not received a production security audit.

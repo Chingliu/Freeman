@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       hold_seconds:
-        description: "Maximum tunnel lifetime in seconds (60-900)"
+        description: "Maximum tunnel lifetime in seconds (60-18000 = 5h max)"
         required: true
         default: "300"
         type: string
@@ -27,7 +27,8 @@ jobs:
   e3-proxy-tunnel:
     name: Run temporary authenticated proxy tunnel
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 5h hold + setup buffer; GitHub-hosted jobs cap at 360 minutes
+    timeout-minutes: 330
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -62,8 +63,8 @@ jobs:
             echo "::error::Configure repository Actions secret E3_TUNNEL_TOKEN before running E3."
             exit 1
           fi
-          if ! [[ "$E3_HOLD_SECONDS" =~ ^[0-9]+$ ]] || (( E3_HOLD_SECONDS < 60 || E3_HOLD_SECONDS > 900 )); then
-            echo "::error::hold_seconds must be an integer between 60 and 900."
+          if ! [[ "$E3_HOLD_SECONDS" =~ ^[0-9]+$ ]] || (( E3_HOLD_SECONDS < 60 || E3_HOLD_SECONDS > 18000 )); then
+            echo "::error::hold_seconds must be an integer between 60 and 18000."
             exit 1
           fi
           RUNNER_EGRESS_IP=$(curl --fail --silent --show-error --max-time 10 https://api.ipify.org)
@@ -97,4 +98,4 @@ jobs:
           echo "E3_STATUS_URL=$URL/health"
           echo "The proxy tunnel is temporary. Keep this job running while testing; do not share the URL or token."
           sleep "$E3_HOLD_SECONDS"
-        timeout-minutes: 18
+        timeout-minutes: 325
