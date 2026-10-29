@@ -22,4 +22,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Record runner and outbound IP information
-        run: python3 experiments/runner_egress_probe.py --hold-seconds "${{ inputs.hold_seconds }}"
+        env:
+          HOLD_SECONDS: ${{ inputs.hold_seconds }}
+        run: python3 experiments/runner_egress_probe.py
