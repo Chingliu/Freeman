@@ -10,9 +10,9 @@ on:
         type: string
   # push trigger was needed pre-merge because workflow_dispatch requires the
   # workflow on the default branch; remove this hunk once the PR merges.
-  # push:
-  #   branches:
-  #     - experiment/e3-edge-browser-proxy
+  push:
+    branches:
+      - experiment/e3-edge-browser-proxy
 
 permissions:
   contents: read
