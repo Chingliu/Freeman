@@ -1,0 +1,25 @@
+name: "Freeman: Runner egress probe"
+
+on:
+  workflow_dispatch:
+    inputs:
+      hold_seconds:
+        description: "Optional short wait to observe runner lifetime (0-600 seconds)"
+        required: false
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  egress-probe:
+    name: Inspect outbound network
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Record runner and outbound IP information
+        run: python3 experiments/runner_egress_probe.py --hold-seconds "${{ inputs.hold_seconds }}"
