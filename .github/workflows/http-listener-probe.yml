@@ -1,0 +1,33 @@
+name: "Freeman: HTTP listener reachability probe"
+
+on:
+  workflow_dispatch:
+    inputs:
+      port:
+        description: "HTTP port to listen on (1024-65535)"
+        required: true
+        default: "8080"
+        type: string
+      hold_seconds:
+        description: "Keep the HTTP listener alive for manual testing (30-600 seconds)"
+        required: true
+        default: "300"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  http-listener:
+    name: Start temporary HTTP listener
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Start HTTP listener and print test address
+        env:
+          PROBE_PORT: ${{ inputs.port }}
+          HOLD_SECONDS: ${{ inputs.hold_seconds }}
+        run: python3 experiments/http_listener_probe.py
