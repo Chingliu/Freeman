@@ -8,6 +8,9 @@ on:
         required: true
         default: "300"
         type: string
+  push:
+    branches:
+      - experiment/e3-edge-browser-proxy
 
 permissions:
   contents: read
@@ -46,7 +49,8 @@ jobs:
       - name: Start proxy relay and temporary HTTPS tunnel
         env:
           E3_TUNNEL_TOKEN: ${{ secrets.E3_TUNNEL_TOKEN }}
-          E3_HOLD_SECONDS: ${{ inputs.hold_seconds }}
+          # push events have no dispatch inputs; fall back to the documented default
+          E3_HOLD_SECONDS: ${{ inputs.hold_seconds || '300' }}
         shell: bash
         run: |
           set -euo pipefail
