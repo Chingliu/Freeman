@@ -46,8 +46,11 @@ The job intentionally fails early if `E3_TUNNEL_TOKEN` is not configured. The st
 In a Windows PowerShell terminal, from a local clone of this repository, install the pinned dependency and set the environment variable:
 
 ```powershell
+python --version  # use Python 3.11 or newer
 python -m pip install -r experiments/e3-requirements.txt
-$env:E3_TUNNEL_TOKEN = 'PASTE_THE_SAME_TOKEN_HERE'
+Read-Host 'Enter E3 token' -AsSecureString | ForEach-Object {
+  $env:E3_TUNNEL_TOKEN = [System.Net.NetworkCredential]::new('', $_).Password
+}
 python experiments/e3_edge_socks_client.py 'https://YOUR-RUN.trycloudflare.com'
 ```
 
