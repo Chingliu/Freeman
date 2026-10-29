@@ -1,5 +1,23 @@
 # E3 — Microsoft Edge browser proxy through GitHub Actions
 
+## Verification results (2026-10-29)
+
+All five pass criteria were verified end-to-end (runs 40840121168, 40843329649):
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Tunnel | PASS | Quick Tunnel URL logged; `/health` reachable |
+| Authenticated transport | PASS | Local SOCKS5 client completed WSS handshake with Bearer token |
+| Browser proxy | PASS | Dedicated Edge instance opened HTTPS pages via `socks5://127.0.0.1:1080` |
+| Egress evidence | PASS | `api.ipify.org` through the tunnel matched `E3_RUNNER_EGRESS_IP` exactly (134.33.76.12, then 172.202.119.179) |
+| Bounded lifetime | PASS | Each run self-terminated after `hold_seconds`; the tunnel returned HTTP 530 once the hold expired |
+
+Operational notes from the runs:
+
+- `workflow_dispatch` cannot reach this workflow while it lives only on a non-default branch; a branch-scoped `push` trigger was used to run it pre-merge and is left disabled in the committed file.
+- In-progress job logs via the REST API were unreliable (intermittent `BlobNotFound`), so the tunnel URL was read from the Actions console.
+- One verification window was missed because the 300-second hold expired before the local client connected; treat the URL as having a hard deadline.
+
 ## Goal
 
 Test whether a Windows Edge instance can use a local SOCKS5 endpoint whose TCP streams are relayed over an authenticated WebSocket/Cloudflare Quick Tunnel to a GitHub-hosted runner, so destination HTTP/HTTPS connections originate from the runner.
