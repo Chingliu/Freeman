@@ -77,7 +77,7 @@ async def relay(request: web.Request) -> web.StreamResponse:
     if request.headers.get("Upgrade", "").lower() != "websocket":
         raise web.HTTPBadRequest(text="WebSocket upgrade required")
 
-    ws = web.WebSocketResponse(max_msg_size=4096, heartbeat=30, autoping=True)
+    ws = web.WebSocketResponse(max_msg_size=131072, heartbeat=30, autoping=True)
     await ws.prepare(request)
     writer = None
     try:
